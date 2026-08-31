@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="ExperimentRunner/ExperimentRunner.csproj" />
+  <Project Path="SchedulerCore.Tests/SchedulerCore.Tests.csproj" />
+  <Project Path="SchedulerCore/SchedulerCore.csproj" />
+  <Project Path="SchedulerGui/SchedulerGui.csproj" />
+</Solution>
