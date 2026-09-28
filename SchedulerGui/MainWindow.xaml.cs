@@ -2,13 +2,18 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using SchedulerCore.Models;
+using SchedulerCore.Services;
 
 namespace SchedulerGui;
 
 public partial class MainWindow : Window
 {
+    private readonly WorkloadGenerator _workloadGenerator = new();
+    private readonly SchedulerService _schedulerService = new();
+
     public ObservableCollection<ProcessModel> Workload { get; } = new();
     public ObservableCollection<ProcessModel> Results { get; } = new();
+    public ObservableCollection<ExecutionSlice> Timeline { get; } = new();
 
     public MainWindow()
     {
@@ -32,7 +37,8 @@ public partial class MainWindow : Window
             return;
 
         QuantumTextBox.IsEnabled =
-            string.Equals(AlgorithmComboBox.SelectedItem.ToString(),
+            string.Equals(
+                AlgorithmComboBox.SelectedItem.ToString(),
                 "Round Robin",
                 StringComparison.OrdinalIgnoreCase);
 
@@ -43,55 +49,67 @@ public partial class MainWindow : Window
     {
         ValidationTextBlock.Text = string.Empty;
 
-        if (!TryReadConfiguration(out int processCount, out int trialNumber, out _, out _))
+        if (!TryReadConfiguration(
+                out int processCount,
+                out int trialNumber,
+                out _,
+                out _))
+        {
             return;
+        }
 
         int seed = CalculateSeed(processCount, trialNumber);
+
+        IReadOnlyList<ProcessModel> generated =
+            _workloadGenerator.Generate(processCount, seed);
+
+        DisplayWorkload(generated);
         SeedText.Text = seed.ToString();
-
-        MessageBox.Show(
-            "The GUI is ready to receive the deterministic workload from SchedulerCore. " +
-            "The WorkloadGenerator is not yet present on the repository's main branch, so no duplicate generator is implemented inside SchedulerGui.",
-            "Workload Generator Pending",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
-
-        StatusTextBlock.Text = "Waiting for WorkloadGenerator";
+        StatusTextBlock.Text = $"Generated {processCount} processes";
     }
 
     private void RunButton_Click(object sender, RoutedEventArgs e)
     {
         ValidationTextBlock.Text = string.Empty;
 
-        if (!TryReadConfiguration(out _, out _, out string algorithm, out int? quantum))
-            return;
-
-        if (Workload.Count == 0)
+        if (!TryReadConfiguration(
+                out _,
+                out _,
+                out string algorithm,
+                out int? quantum))
         {
-            ValidationTextBlock.Text = "Generate a workload before running a simulation.";
             return;
         }
 
-        string quantumMessage =
-            algorithm == "Round Robin"
-                ? $" Quantum: {quantum}."
-                : string.Empty;
+        if (Workload.Count == 0)
+        {
+            ValidationTextBlock.Text =
+                "Generate a workload before running a simulation.";
+            return;
+        }
 
-        MessageBox.Show(
-            $"Selected algorithm: {algorithm}.{quantumMessage} " +
-            "The scheduler execution API is not yet present on main. " +
-            "SchedulerGui is intentionally not duplicating scheduling logic.",
-            "SchedulerCore Integration Pending",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        try
+        {
+            SimulationResult result =
+                _schedulerService.Run(
+                    algorithm,
+                    Workload,
+                    quantum);
 
-        StatusTextBlock.Text = "Waiting for scheduler implementation";
+            DisplayResults(result);
+        }
+        catch (Exception ex)
+        {
+            ValidationTextBlock.Text = ex.Message;
+            StatusTextBlock.Text = "Simulation failed";
+        }
     }
 
     private void ResetButton_Click(object sender, RoutedEventArgs e)
     {
         Workload.Clear();
         Results.Clear();
+        Timeline.Clear();
 
         AverageWaitingText.Text = "—";
         AverageTurnaroundText.Text = "—";
@@ -131,6 +149,7 @@ public partial class MainWindow : Window
         }
 
         string? selectedAlgorithm = AlgorithmComboBox.SelectedItem?.ToString();
+
         if (string.IsNullOrWhiteSpace(selectedAlgorithm))
         {
             ValidationTextBlock.Text = "Select a scheduling algorithm.";
@@ -139,9 +158,11 @@ public partial class MainWindow : Window
 
         if (selectedAlgorithm == "Round Robin")
         {
-            if (!int.TryParse(QuantumTextBox.Text, out int parsedQuantum) || parsedQuantum <= 0)
+            if (!int.TryParse(QuantumTextBox.Text, out int parsedQuantum) ||
+                parsedQuantum <= 0)
             {
-                ValidationTextBlock.Text = "Round Robin quantum must be a positive whole number.";
+                ValidationTextBlock.Text =
+                    "Round Robin quantum must be a positive whole number.";
                 return false;
             }
 
@@ -164,7 +185,8 @@ public partial class MainWindow : Window
         if (ProcessCountComboBox.SelectedItem is int processCount &&
             TrialComboBox.SelectedItem is int trialNumber)
         {
-            SeedText.Text = CalculateSeed(processCount, trialNumber).ToString();
+            SeedText.Text =
+                CalculateSeed(processCount, trialNumber).ToString();
         }
         else
         {
@@ -175,39 +197,41 @@ public partial class MainWindow : Window
     private static int CalculateSeed(int processCount, int trialNumber)
         => processCount * 1000 + trialNumber;
 
-    private void DisplayResults(IEnumerable<ProcessModel> completedProcesses)
+    private void DisplayResults(SimulationResult result)
     {
         Results.Clear();
+        Timeline.Clear();
 
-        foreach (ProcessModel process in completedProcesses.OrderBy(p => p.ProcessId))
+        foreach (ProcessModel process in result.Processes.OrderBy(p => p.ProcessId))
             Results.Add(process);
 
-        if (Results.Count == 0)
-        {
-            AverageWaitingText.Text = "—";
-            AverageTurnaroundText.Text = "—";
-            AverageResponseText.Text = "—";
-            return;
-        }
+        foreach (ExecutionSlice slice in result.Timeline)
+            Timeline.Add(slice);
 
-        AverageWaitingText.Text = Results.Average(p => p.WaitingTime).ToString("0.00");
-        AverageTurnaroundText.Text = Results.Average(p => p.TurnaroundTime).ToString("0.00");
-        AverageResponseText.Text = Results.Average(p => p.ResponseTime).ToString("0.00");
+        AverageWaitingText.Text =
+            result.AverageWaitingTime.ToString("0.00");
 
-        StatusTextBlock.Text = "Simulation complete";
+        AverageTurnaroundText.Text =
+            result.AverageTurnaroundTime.ToString("0.00");
+
+        AverageResponseText.Text =
+            result.AverageResponseTime.ToString("0.00");
+
+        StatusTextBlock.Text =
+            $"{result.Algorithm} complete • Makespan {result.Makespan}";
     }
 
     private void DisplayWorkload(IEnumerable<ProcessModel> processes)
     {
         Workload.Clear();
+        Results.Clear();
+        Timeline.Clear();
 
         foreach (ProcessModel process in processes.OrderBy(p => p.ProcessId))
             Workload.Add(process);
 
-        Results.Clear();
         AverageWaitingText.Text = "—";
         AverageTurnaroundText.Text = "—";
         AverageResponseText.Text = "—";
-        StatusTextBlock.Text = $"Loaded {Workload.Count} processes";
     }
 }
