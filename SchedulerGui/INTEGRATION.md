@@ -1,74 +1,63 @@
-# SchedulerGui Integration Contract
+# SchedulerGui / SchedulerCore Integration
 
-This branch contains the final GUI structure for Choice D (WPF GUI & Visualisation).
+This branch contains the end-to-end implementation required for the GUI and scheduling core.
 
-## What SchedulerGui already owns
+## Implemented SchedulerCore components
 
-- Process-count selection: 10, 20, 30, 40, 50
-- Trial selection: 1-5
-- Algorithm selection: FCFS, SRTF, Round Robin
+- `WorkloadGenerator`
+- `IScheduler`
+- `FcfsScheduler`
+- `SrtfScheduler`
+- `RoundRobinScheduler`
+- `MetricsCalculator`
+- `SchedulerService`
+- `SimulationResult`
+- `ExecutionSlice`
+
+## Workload methodology
+
+- Process counts supported by the GUI: 10, 20, 30, 40, 50
+- Trial numbers: 1-5
+- Seed: `ProcessCount * 1000 + TrialNumber`
+- Burst time: 1-20 inclusive
+- Arrival gap: 0-5 inclusive
+- First process arrives at time 0
+- Priority: generated as an unused process attribute
+- All schedulers clone the supplied workload before simulation
+
+## Scheduler behaviour
+
+### FCFS
+Non-preemptive. Processes are selected in arrival order, then ProcessId for deterministic ties.
+
+### SRTF
+Preemptive. At every time unit, the ready process with the shortest remaining time is selected. Ties use arrival time and then ProcessId.
+
+### Round Robin
+Preemptive with a configurable positive integer quantum. New arrivals join the ready queue while the current process is executing.
+
+## Metrics
+
+After a simulation completes:
+
+- Turnaround Time = Completion Time - Arrival Time
+- Waiting Time = Turnaround Time - Burst Time
+- Response Time = First Start Time - Arrival Time
+
+## GUI features
+
+- process-count selector
+- trial selector
+- FCFS / SRTF / Round Robin selector
 - Round Robin quantum validation
-- Deterministic seed display using `ProcessCount * 1000 + TrialNumber`
-- Workload DataGrid
-- Results DataGrid
-- Average waiting / turnaround / response metric display
-- Reset behaviour
-- Validation and status messages
-- Binding to `SchedulerCore.Models.ProcessModel`
+- deterministic seed display
+- generated workload DataGrid
+- process results DataGrid
+- execution timeline DataGrid
+- average waiting time
+- average turnaround time
+- average response time
+- makespan shown in status
+- reset and validation handling
 
-## Required SchedulerCore integration
-
-SchedulerGui intentionally does not implement workload generation or scheduling logic.
-
-The remaining core implementation needs to expose equivalent functionality to the following conceptual contract:
-
-```csharp
-IReadOnlyList<ProcessModel> GenerateWorkload(int processCount, int seed);
-
-IReadOnlyList<ProcessModel> RunFcfs(IEnumerable<ProcessModel> processes);
-
-IReadOnlyList<ProcessModel> RunSrtf(IEnumerable<ProcessModel> processes);
-
-IReadOnlyList<ProcessModel> RunRoundRobin(
-    IEnumerable<ProcessModel> processes,
-    int quantum);
-```
-
-The concrete class/method names may differ. Once the real SchedulerCore classes are merged, only the two button handlers in `MainWindow.xaml.cs` need to be connected to those APIs.
-
-## Fair-comparison rule
-
-Before running a scheduler, SchedulerGui should pass cloned processes:
-
-```csharp
-var copy = workload.Select(p => p.Clone()).ToList();
-```
-
-This prevents one algorithm from mutating the state used by another.
-
-## Expected process fields
-
-The GUI currently binds to these existing `ProcessModel` members:
-
-- ProcessId
-- ArrivalTime
-- BurstTime
-- Priority
-- FirstStartTime
-- CompletionTime
-- WaitingTime
-- TurnaroundTime
-- ResponseTime
-
-## Do not move into SchedulerGui
-
-The following logic must remain in SchedulerCore:
-
-- workload generation
-- FCFS
-- SRTF
-- Round Robin
-- scheduling metric calculation
-- execution/timeline calculation
-
-This keeps the WPF layer decoupled and prevents duplicate logic.
+The GUI calls `SchedulerService`; it does not contain scheduling logic.
