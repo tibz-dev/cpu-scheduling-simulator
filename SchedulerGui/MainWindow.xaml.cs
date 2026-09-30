@@ -1,4 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Text;
+using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Controls;
 using SchedulerCore.Models;
@@ -155,6 +158,112 @@ public partial class MainWindow : Window
             ValidationTextBlock.Text = ex.Message;
             StatusTextBlock.Text = "Simulation failed";
         }
+    }
+
+
+    private void SaveResultsButton_Click(object sender, RoutedEventArgs e)
+    {
+        ValidationTextBlock.Text = string.Empty;
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "Save Experiment Results",
+            FileName = "experiment_results.csv",
+            DefaultExt = ".csv",
+            Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+            AddExtension = true,
+            OverwritePrompt = true
+        };
+
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            StatusTextBlock.Text = "Generating experiment results...";
+            SaveResultsButton.IsEnabled = false;
+
+            int[] processCounts = { 10, 20, 30, 40, 50 };
+            int[] trials = { 1, 2, 3, 4, 5 };
+            string[] algorithms = { "FCFS", "SRTF", "Round Robin" };
+            var csv = new StringBuilder();
+
+            csv.AppendLine(
+                "ProcessCount,Trial,Seed,Algorithm,RRQuantum," +
+                "AverageWaitingTime,AverageTurnaroundTime," +
+                "AverageResponseTime,Makespan");
+
+            foreach (int processCount in processCounts)
+            {
+                foreach (int trial in trials)
+                {
+                    int seed = CalculateSeed(processCount, trial);
+                    IReadOnlyList<ProcessModel> workload =
+                        _workloadGenerator.Generate(processCount, seed);
+                    int rrQuantum = CalculateRoundRobinQuantum(seed);
+
+                    foreach (string algorithm in algorithms)
+                    {
+                        int? quantum = algorithm == "Round Robin"
+                            ? rrQuantum
+                            : null;
+
+                        SimulationResult result =
+                            _schedulerService.Run(algorithm, workload, quantum);
+
+                        csv.Append(processCount).Append(',')
+                            .Append(trial).Append(',')
+                            .Append(seed).Append(',')
+                            .Append(EscapeCsv(result.Algorithm)).Append(',')
+                            .Append(quantum?.ToString(CultureInfo.InvariantCulture) ?? string.Empty).Append(',')
+                            .Append(result.AverageWaitingTime.ToString("F4", CultureInfo.InvariantCulture)).Append(',')
+                            .Append(result.AverageTurnaroundTime.ToString("F4", CultureInfo.InvariantCulture)).Append(',')
+                            .Append(result.AverageResponseTime.ToString("F4", CultureInfo.InvariantCulture)).Append(',')
+                            .Append(result.Makespan)
+                            .AppendLine();
+                    }
+                }
+            }
+
+            File.WriteAllText(dialog.FileName, csv.ToString(), new UTF8Encoding(false));
+            StatusTextBlock.Text = "Experiment results saved";
+
+            MessageBox.Show(
+                $"75 experiment results saved successfully to:\n{dialog.FileName}",
+                "Export Complete",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            ValidationTextBlock.Text = $"Could not save experiment results: {ex.Message}";
+            StatusTextBlock.Text = "Export failed";
+        }
+        finally
+        {
+            SaveResultsButton.IsEnabled = true;
+        }
+    }
+
+    private static int CalculateRoundRobinQuantum(int seed)
+    {
+        const int minimum = 2;
+        const int maximum = 8;
+        var random = new Random(seed ^ unchecked((int)0x5F3759DF));
+        return random.Next(minimum, maximum + 1);
+    }
+
+    private static string EscapeCsv(string value)
+    {
+        if (!value.Contains(',') &&
+            !value.Contains('"') &&
+            !value.Contains('\n') &&
+            !value.Contains('\r'))
+        {
+            return value;
+        }
+
+        return $"\"{value.Replace("\"", "\"\"")}\"";
     }
 
     private void ResetButton_Click(object sender, RoutedEventArgs e)
