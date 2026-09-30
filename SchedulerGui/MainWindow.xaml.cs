@@ -11,6 +11,10 @@ public partial class MainWindow : Window
     private readonly WorkloadGenerator _workloadGenerator = new();
     private readonly SchedulerService _schedulerService = new();
 
+    private int? _generatedProcessCount;
+    private int? _generatedTrialNumber;
+    private int? _generatedSeed;
+
     public ObservableCollection<ProcessModel> Workload { get; } = new();
     public ObservableCollection<ProcessModel> Results { get; } = new();
     public ObservableCollection<ExecutionSlice> Timeline { get; } = new();
@@ -28,7 +32,38 @@ public partial class MainWindow : Window
         TrialComboBox.SelectedIndex = 0;
         AlgorithmComboBox.SelectedIndex = 0;
 
+        ProcessCountComboBox.SelectionChanged += Configuration_SelectionChanged;
+        TrialComboBox.SelectionChanged += Configuration_SelectionChanged;
+
         UpdateSeedDisplay();
+    }
+
+
+    private void Configuration_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        UpdateSeedDisplay();
+
+        if (Workload.Count == 0 ||
+            _generatedProcessCount is null ||
+            _generatedTrialNumber is null)
+        {
+            return;
+        }
+
+        if (ProcessCountComboBox.SelectedItem is int processCount &&
+            TrialComboBox.SelectedItem is int trialNumber &&
+            (processCount != _generatedProcessCount ||
+             trialNumber != _generatedTrialNumber))
+        {
+            Results.Clear();
+            Timeline.Clear();
+            AverageWaitingText.Text = "—";
+            AverageTurnaroundText.Text = "—";
+            AverageResponseText.Text = "—";
+            ValidationTextBlock.Text =
+                "Configuration changed. Generate a new workload before running.";
+            StatusTextBlock.Text = "Workload regeneration required";
+        }
     }
 
     private void AlgorithmComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -64,6 +99,9 @@ public partial class MainWindow : Window
             _workloadGenerator.Generate(processCount, seed);
 
         DisplayWorkload(generated);
+        _generatedProcessCount = processCount;
+        _generatedTrialNumber = trialNumber;
+        _generatedSeed = seed;
         SeedText.Text = seed.ToString();
         StatusTextBlock.Text = $"Generated {processCount} processes";
     }
@@ -81,10 +119,24 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (Workload.Count == 0)
+        if (Workload.Count == 0 ||
+            _generatedProcessCount is null ||
+            _generatedTrialNumber is null ||
+            _generatedSeed is null)
         {
             ValidationTextBlock.Text =
                 "Generate a workload before running a simulation.";
+            return;
+        }
+
+        if (ProcessCountComboBox.SelectedItem is not int selectedProcessCount ||
+            TrialComboBox.SelectedItem is not int selectedTrial ||
+            selectedProcessCount != _generatedProcessCount ||
+            selectedTrial != _generatedTrialNumber)
+        {
+            ValidationTextBlock.Text =
+                "The process count or trial changed. Generate a new workload before running the simulation.";
+            StatusTextBlock.Text = "Workload regeneration required";
             return;
         }
 
@@ -110,6 +162,9 @@ public partial class MainWindow : Window
         Workload.Clear();
         Results.Clear();
         Timeline.Clear();
+        _generatedProcessCount = null;
+        _generatedTrialNumber = null;
+        _generatedSeed = null;
 
         AverageWaitingText.Text = "—";
         AverageTurnaroundText.Text = "—";
