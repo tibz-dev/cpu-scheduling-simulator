@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using SchedulerCore.Models;
 using SchedulerCore.Services;
 
@@ -5,14 +7,12 @@ int[] processCounts = { 10, 20, 30, 40, 50 };
 int[] trials = { 1, 2, 3, 4, 5 };
 string[] algorithms = { "FCFS", "SRTF", "Round Robin" };
 
-// The research methodology requires one fixed RR quantum per workload.
-// It is deterministically derived from the workload seed so it is reproducible
-// and always falls within the required range 2-8.
 const int minQuantum = 2;
 const int maxQuantum = 8;
 
 var workloadGenerator = new WorkloadGenerator();
 var schedulerService = new SchedulerService();
+var experimentRows = new List<ExperimentRow>();
 
 Console.WriteLine("CPU Scheduling Simulator - Experiment Runner");
 Console.WriteLine("Process counts: 10, 20, 30, 40, 50");
@@ -29,8 +29,7 @@ foreach (int processCount in processCounts)
     {
         int seed = CalculateSeed(processCount, trial);
 
-        // Generate exactly once. The same workload object is passed to every
-        // scheduler. Each scheduler clones internally before mutating state.
+        // Generate exactly once so all algorithms receive the same workload.
         IReadOnlyList<ProcessModel> workload =
             workloadGenerator.Generate(processCount, seed);
 
@@ -50,6 +49,17 @@ foreach (int processCount in processCounts)
             SimulationResult result =
                 schedulerService.Run(algorithm, workload, quantum);
 
+            experimentRows.Add(new ExperimentRow(
+                processCount,
+                trial,
+                seed,
+                result.Algorithm,
+                quantum,
+                result.AverageWaitingTime,
+                result.AverageTurnaroundTime,
+                result.AverageResponseTime,
+                result.Makespan));
+
             completedRuns++;
 
             Console.WriteLine(
@@ -64,13 +74,26 @@ foreach (int processCount in processCounts)
     }
 }
 
-Console.WriteLine($"Completed {completedRuns} of {expectedRuns} experiment runs.");
-
 if (completedRuns != expectedRuns)
 {
     throw new InvalidOperationException(
         $"Expected {expectedRuns} runs but completed {completedRuns}.");
 }
+
+string resultsDirectory = Path.Combine(
+    Directory.GetCurrentDirectory(),
+    "ExperimentResults");
+
+Directory.CreateDirectory(resultsDirectory);
+
+string csvPath = Path.Combine(
+    resultsDirectory,
+    "experiment_results.csv");
+
+WriteCsv(csvPath, experimentRows);
+
+Console.WriteLine($"Completed {completedRuns} of {expectedRuns} experiment runs.");
+Console.WriteLine($"Results exported to: {Path.GetFullPath(csvPath)}");
 
 static int CalculateSeed(int processCount, int trialNumber)
     => (processCount * 1000) + trialNumber;
@@ -83,3 +106,55 @@ static int CalculateRoundRobinQuantum(
     var random = new Random(seed ^ unchecked((int)0x5F3759DF));
     return random.Next(minimum, maximum + 1);
 }
+
+static void WriteCsv(
+    string path,
+    IEnumerable<ExperimentRow> rows)
+{
+    var csv = new StringBuilder();
+
+    csv.AppendLine(
+        "ProcessCount,Trial,Seed,Algorithm,RRQuantum," +
+        "AverageWaitingTime,AverageTurnaroundTime," +
+        "AverageResponseTime,Makespan");
+
+    foreach (ExperimentRow row in rows)
+    {
+        csv.Append(row.ProcessCount).Append(',')
+            .Append(row.Trial).Append(',')
+            .Append(row.Seed).Append(',')
+            .Append(EscapeCsv(row.Algorithm)).Append(',')
+            .Append(row.RRQuantum?.ToString(CultureInfo.InvariantCulture) ?? string.Empty).Append(',')
+            .Append(row.AverageWaitingTime.ToString("F4", CultureInfo.InvariantCulture)).Append(',')
+            .Append(row.AverageTurnaroundTime.ToString("F4", CultureInfo.InvariantCulture)).Append(',')
+            .Append(row.AverageResponseTime.ToString("F4", CultureInfo.InvariantCulture)).Append(',')
+            .Append(row.Makespan)
+            .AppendLine();
+    }
+
+    File.WriteAllText(path, csv.ToString(), new UTF8Encoding(false));
+}
+
+static string EscapeCsv(string value)
+{
+    if (!value.Contains(',') &&
+        !value.Contains('"') &&
+        !value.Contains('\n') &&
+        !value.Contains('\r'))
+    {
+        return value;
+    }
+
+    return $"\"{value.Replace("\"", "\"\"")}\"";
+}
+
+internal sealed record ExperimentRow(
+    int ProcessCount,
+    int Trial,
+    int Seed,
+    string Algorithm,
+    int? RRQuantum,
+    double AverageWaitingTime,
+    double AverageTurnaroundTime,
+    double AverageResponseTime,
+    int Makespan);
