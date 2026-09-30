@@ -9,7 +9,7 @@ public class WorkloadGenerator
     public const int MinArrivalGap = 0;
     public const int MaxArrivalGap = 5;
     public const int MinPriority = 1;
-    public const int MaxPriority = 5;
+    public const int MaxPriority = 10;
 
     public IReadOnlyList<ProcessModel> Generate(int processCount, int seed)
     {
