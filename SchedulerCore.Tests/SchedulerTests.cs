@@ -114,4 +114,78 @@ public class SchedulerTests
         Assert.AreEqual(turnaround, process.TurnaroundTime);
         Assert.AreEqual(response, process.ResponseTime);
     }
+    [TestMethod]
+public void WorkloadGenerator_UsesRequiredAttributeRanges()
+{
+    var generator = new WorkloadGenerator();
+
+    var workload = generator.Generate(50, 51001);
+
+    Assert.AreEqual(50, workload.Count);
+
+    for (int i = 0; i < workload.Count; i++)
+    {
+        var process = workload[i];
+
+        Assert.IsTrue(
+            process.BurstTime >= 1 && process.BurstTime <= 20,
+            $"Process {process.ProcessId} has an invalid burst time.");
+
+        Assert.IsTrue(
+            process.Priority >= 1 && process.Priority <= 10,
+            $"Process {process.ProcessId} has an invalid priority.");
+
+        Assert.AreEqual(i + 1, process.ProcessId);
+        Assert.AreEqual(process.BurstTime, process.RemainingTime);
+
+        if (i > 0)
+        {
+            int gap = process.ArrivalTime - workload[i - 1].ArrivalTime;
+
+            Assert.IsTrue(
+                gap >= 0 && gap <= 5,
+                $"Process {process.ProcessId} has an invalid arrival gap.");
+        }
+    }
+}
+
+[TestMethod]
+public void WorkloadGenerator_RejectsInvalidProcessCount()
+{
+    var generator = new WorkloadGenerator();
+
+    Assert.ThrowsExactly<ArgumentOutOfRangeException>(
+        () => generator.Generate(0, 10001));
+
+    Assert.ThrowsExactly<ArgumentOutOfRangeException>(
+        () => generator.Generate(-1, 10001));
+}
+
+[TestMethod]
+public void RoundRobin_HandlesArrivalsAndIdlePeriods()
+{
+    var workload = new[]
+    {
+        P(1, 2, 5),
+        P(2, 3, 1),
+        P(3, 12, 2)
+    };
+
+    var result = new RoundRobinScheduler(2).Run(workload);
+
+    AssertProcess(
+        result, 1, start: 2, completion: 8,
+        waiting: 1, turnaround: 6, response: 0);
+
+    AssertProcess(
+        result, 2, start: 4, completion: 5,
+        waiting: 1, turnaround: 2, response: 1);
+
+    AssertProcess(
+        result, 3, start: 12, completion: 14,
+        waiting: 0, turnaround: 2, response: 0);
+
+    Assert.AreEqual(3, result.Processes.Count);
+    Assert.IsTrue(result.Processes.All(p => p.RemainingTime == 0));
+}
 }
