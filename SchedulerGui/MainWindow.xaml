@@ -46,18 +46,12 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="2*"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="0.8*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="20">
 
         <!-- Header -->
-        <Grid Grid.Row="0" Margin="0,0,0,16">
+        <Grid Margin="0,0,0,16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -87,7 +81,7 @@
         </Grid>
 
         <!-- Configuration -->
-        <GroupBox Grid.Row="1" Header="Simulation Configuration">
+        <GroupBox Header="Simulation Configuration">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -126,7 +120,7 @@
         </GroupBox>
 
         <!-- Tables -->
-        <Grid Grid.Row="2">
+        <Grid Height="300">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="0.85*"/>
                 <ColumnDefinition Width="14"/>
@@ -159,7 +153,7 @@
         </Grid>
 
         <!-- Metrics -->
-        <GroupBox Grid.Row="3" Header="Performance Summary">
+        <GroupBox Header="Performance Summary">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -190,20 +184,98 @@
             </Grid>
         </GroupBox>
 
-        <!-- Timeline -->
-        <GroupBox Grid.Row="4" Header="Execution Timeline">
-            <DataGrid x:Name="TimelineDataGrid" ItemsSource="{Binding Timeline}">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="PID" Binding="{Binding ProcessId}" Width="*"/>
-                    <DataGridTextColumn Header="Start" Binding="{Binding StartTime}" Width="*"/>
-                    <DataGridTextColumn Header="End" Binding="{Binding EndTime}" Width="*"/>
-                    <DataGridTextColumn Header="Duration" Binding="{Binding Duration}" Width="*"/>
-                </DataGrid.Columns>
-            </DataGrid>
-        </GroupBox>
+        <!-- Execution details -->
+        <TabControl x:Name="ExecutionDetailsTabControl" Height="360" Margin="0,0,0,14">
+            <TabItem Header="Execution Timeline">
+                <DataGrid x:Name="TimelineDataGrid" ItemsSource="{Binding Timeline}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="PID" Binding="{Binding ProcessId}" Width="*"/>
+                        <DataGridTextColumn Header="Start" Binding="{Binding StartTime}" Width="*"/>
+                        <DataGridTextColumn Header="End" Binding="{Binding EndTime}" Width="*"/>
+                        <DataGridTextColumn Header="Duration" Binding="{Binding Duration}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+            <TabItem x:Name="ExecutionGuideTabItem" Header="Execution Guide">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto"
+                              Height="310">
+                    <Canvas x:Name="ExecutionGuideCanvas"
+                            Width="700"
+                            Height="140"
+                            Background="White"
+                            Loaded="ExecutionGuideCanvas_Loaded"/>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Algorithm Guide">
+                <DataGrid ItemsSource="{Binding AlgorithmGuide}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Algorithm" Binding="{Binding Algorithm}" Width="0.8*"/>
+                        <DataGridTextColumn Header="How it chooses" Binding="{Binding SelectionRule}" Width="1.2*">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextWrapping" Value="Wrap"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="How it runs" Binding="{Binding ExecutionRule}" Width="1.5*">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextWrapping" Value="Wrap"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+            <TabItem Header="Waiting Time Graph">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Margin="4,0,4,8">
+                        <TextBlock Text="Average Waiting Time (time units)"
+                                   VerticalAlignment="Center"
+                                   Foreground="#4B5563"/>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <StackPanel Orientation="Horizontal" Margin="12,0,0,0">
+                                <Rectangle Width="12" Height="12" Fill="#177E89" VerticalAlignment="Center"/>
+                                <TextBlock Text="FCFS" Margin="5,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="12,0,0,0">
+                                <Rectangle Width="12" Height="12" Fill="#D1495B" VerticalAlignment="Center"/>
+                                <TextBlock Text="SRTF" Margin="5,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="12,0,0,0">
+                                <Rectangle Width="12" Height="12" Fill="#E3A018" VerticalAlignment="Center"/>
+                                <TextBlock Text="Round Robin" Margin="5,0,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </DockPanel>
+
+                    <Canvas x:Name="WaitingTimeChartCanvas"
+                            Grid.Row="1"
+                            MinHeight="180"
+                            Background="Transparent"
+                            Loaded="WaitingTimeChartCanvas_Loaded"
+                            SizeChanged="WaitingTimeChartCanvas_SizeChanged"/>
+
+                    <TextBlock Grid.Row="2"
+                               Text="Number of Processes"
+                               HorizontalAlignment="Center"
+                               Margin="0,4,0,0"
+                               Foreground="#4B5563"/>
+                </Grid>
+            </TabItem>
+        </TabControl>
 
         <!-- Actions -->
-        <Grid Grid.Row="5">
+        <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -230,5 +302,6 @@
                         Click="ResetButton_Click"/>
             </StackPanel>
         </Grid>
-    </Grid>
+    </StackPanel>
+    </ScrollViewer>
 </Window>
