@@ -1,0 +1,18 @@
+CPU SCHEDULING SIMULATOR
+EXPERIMENT DATA VALIDATION REPORT
+=============================================
+
+CSV file: C:\Users\RHODAH\Documents\Projects\cpu-scheduling-simulator\data\experiment_results.csv
+Rows found: 75
+Expected rows: 75
+
+VALIDATION STATUS: PASSED
+
+All implemented validation checks passed.
+
+Validation checks cover required columns, row count, process counts,
+trials, algorithms, duplicate combinations, seed formula, RR quantum,
+metric validity and makespan consistency.
+
+Note: A passed report confirms these checks only; it does not prove
+that the scheduler implementation itself is correct.
