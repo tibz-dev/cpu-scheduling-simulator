@@ -1,0 +1,16 @@
+ProcessCount,Algorithm,Mean ± SD
+10,FCFS,36.44 ± 4.14
+10,Round Robin,13.14 ± 6.45
+10,SRTF,22.92 ± 5.68
+20,FCFS,66.31 ± 15.58
+20,Round Robin,30.49 ± 9.64
+20,SRTF,39.91 ± 13.79
+30,FCFS,117.71 ± 22.11
+30,Round Robin,51.86 ± 22.48
+30,SRTF,76.88 ± 25.28
+40,FCFS,158.69 ± 23.19
+40,Round Robin,47.93 ± 23.82
+40,SRTF,100.77 ± 22.46
+50,FCFS,188.66 ± 35.28
+50,Round Robin,101.92 ± 31.81
+50,SRTF,118.91 ± 28.62

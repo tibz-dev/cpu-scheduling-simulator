@@ -1,0 +1,61 @@
+ProcessCount,Algorithm,Metric,Mean,SD
+10,FCFS,AverageResponseTime,36.4400,4.1404
+10,FCFS,AverageTurnaroundTime,46.7800,5.4048
+10,FCFS,AverageWaitingTime,36.4400,4.1404
+10,FCFS,Makespan,103.4000,13.1643
+10,Round Robin,AverageResponseTime,13.1400,6.4504
+10,Round Robin,AverageTurnaroundTime,58.3200,9.8723
+10,Round Robin,AverageWaitingTime,47.9800,8.7173
+10,Round Robin,Makespan,103.4000,13.1643
+10,SRTF,AverageResponseTime,22.9200,5.6786
+10,SRTF,AverageTurnaroundTime,34.1200,6.7087
+10,SRTF,AverageWaitingTime,23.7800,5.5729
+10,SRTF,Makespan,103.4000,13.1643
+20,FCFS,AverageResponseTime,66.3100,15.5782
+20,FCFS,AverageTurnaroundTime,76.1500,17.0824
+20,FCFS,AverageWaitingTime,66.3100,15.5782
+20,FCFS,Makespan,196.8000,35.2520
+20,Round Robin,AverageResponseTime,30.4900,9.6391
+20,Round Robin,AverageTurnaroundTime,96.4900,28.7544
+20,Round Robin,AverageWaitingTime,86.6500,27.0747
+20,Round Robin,Makespan,196.8000,35.2520
+20,SRTF,AverageResponseTime,39.9100,13.7933
+20,SRTF,AverageTurnaroundTime,53.0600,16.9977
+20,SRTF,AverageWaitingTime,43.2200,15.3393
+20,SRTF,Makespan,196.8000,35.2520
+30,FCFS,AverageResponseTime,117.7133,22.1091
+30,FCFS,AverageTurnaroundTime,128.3533,23.4005
+30,FCFS,AverageWaitingTime,117.7133,22.1091
+30,FCFS,Makespan,320.0000,47.3709
+30,Round Robin,AverageResponseTime,51.8600,22.4835
+30,Round Robin,AverageTurnaroundTime,167.3933,39.0958
+30,Round Robin,AverageWaitingTime,156.7533,37.5906
+30,Round Robin,Makespan,320.0000,47.3709
+30,SRTF,AverageResponseTime,76.8800,25.2760
+30,SRTF,AverageTurnaroundTime,88.2867,25.9229
+30,SRTF,AverageWaitingTime,77.6467,24.3900
+30,SRTF,Makespan,320.0000,47.3709
+40,FCFS,AverageResponseTime,158.6850,23.1858
+40,FCFS,AverageTurnaroundTime,169.3900,24.3232
+40,FCFS,AverageWaitingTime,158.6850,23.1858
+40,FCFS,Makespan,428.2000,50.7218
+40,Round Robin,AverageResponseTime,47.9300,23.8211
+40,Round Robin,AverageTurnaroundTime,222.6950,45.8371
+40,Round Robin,AverageWaitingTime,211.9900,44.6329
+40,Round Robin,Makespan,428.2000,50.7218
+40,SRTF,AverageResponseTime,100.7650,22.4607
+40,SRTF,AverageTurnaroundTime,112.8300,23.4531
+40,SRTF,AverageWaitingTime,102.1250,22.2023
+40,SRTF,Makespan,428.2000,50.7218
+50,FCFS,AverageResponseTime,188.6560,35.2762
+50,FCFS,AverageTurnaroundTime,199.0000,36.1423
+50,FCFS,AverageWaitingTime,188.6560,35.2762
+50,FCFS,Makespan,518.2000,46.0728
+50,Round Robin,AverageResponseTime,101.9160,31.8101
+50,Round Robin,AverageTurnaroundTime,253.4960,51.0545
+50,Round Robin,AverageWaitingTime,243.1520,50.1437
+50,Round Robin,Makespan,518.2000,46.0728
+50,SRTF,AverageResponseTime,118.9120,28.6217
+50,SRTF,AverageTurnaroundTime,130.2200,29.2165
+50,SRTF,AverageWaitingTime,119.8760,28.3111
+50,SRTF,Makespan,518.2000,46.0728
