@@ -17,6 +17,7 @@ public partial class MainWindow : Window
     private static readonly Brush FcfsChartBrush = new SolidColorBrush(Color.FromRgb(23, 126, 137));
     private static readonly Brush SrtfChartBrush = new SolidColorBrush(Color.FromRgb(209, 73, 91));
     private static readonly Brush RoundRobinChartBrush = new SolidColorBrush(Color.FromRgb(227, 160, 24));
+    private static readonly string[] WaitingTimeAlgorithms = { "FCFS", "SRTF", "Round Robin" };
     private static readonly Brush[] ExecutionChartPalette =
     [
         new SolidColorBrush(Color.FromRgb(77, 110, 245)),
@@ -32,6 +33,9 @@ public partial class MainWindow : Window
     private readonly WorkloadGenerator _workloadGenerator = new();
     private readonly SchedulerService _schedulerService = new();
     private readonly Dictionary<(string Algorithm, int ProcessCount, int Trial), double> _waitingTimeSamples = new();
+    private readonly Dictionary<string, Polyline> _waitingTimeChartLines = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<Ellipse>> _waitingTimeChartMarkers = new(StringComparer.Ordinal);
+    private double _waitingTimeChartMaximumAxisValue;
 
     private int? _generatedProcessCount;
     private int? _generatedTrialNumber;
@@ -182,7 +186,29 @@ public partial class MainWindow : Window
                     Workload,
                     quantum);
 
-            RecordWaitingTime(algorithm, selectedProcessCount, selectedTrial, result.AverageWaitingTime);
+            var comparisonResults = new Dictionary<string, SimulationResult>
+            {
+                [algorithm] = result
+            };
+
+            foreach (string comparisonAlgorithm in WaitingTimeAlgorithms)
+            {
+                if (comparisonAlgorithm == algorithm)
+                    continue;
+
+                int? comparisonQuantum = comparisonAlgorithm == "Round Robin"
+                    ? algorithm == "Round Robin"
+                        ? quantum
+                        : CalculateRoundRobinQuantum(_generatedSeed.Value)
+                    : null;
+
+                comparisonResults[comparisonAlgorithm] = _schedulerService.Run(
+                    comparisonAlgorithm,
+                    Workload,
+                    comparisonQuantum);
+            }
+
+            RecordWaitingTimes(selectedProcessCount, selectedTrial, comparisonResults);
             DisplayResults(result);
         }
         catch (Exception ex)
@@ -402,8 +428,6 @@ public partial class MainWindow : Window
     {
         int[] processCounts = { 10, 20, 30, 40, 50 };
         int[] trials = { 1, 2, 3, 4, 5 };
-        string[] algorithms = { "FCFS", "SRTF", "Round Robin" };
-
         foreach (int processCount in processCounts)
         {
             foreach (int trial in trials)
@@ -413,7 +437,7 @@ public partial class MainWindow : Window
                     _workloadGenerator.Generate(processCount, seed);
                 int quantum = CalculateRoundRobinQuantum(seed);
 
-                foreach (string algorithm in algorithms)
+                foreach (string algorithm in WaitingTimeAlgorithms)
                 {
                     SimulationResult result = _schedulerService.Run(
                         algorithm,
@@ -452,17 +476,24 @@ public partial class MainWindow : Window
                     .ToList());
     }
 
-    private void RecordWaitingTime(
-        string algorithm,
+    private void RecordWaitingTimes(
         int processCount,
         int trial,
-        double averageWaitingTime)
+        IReadOnlyDictionary<string, SimulationResult> comparisonResults)
     {
-        _waitingTimeSamples[(algorithm, processCount, trial)] = averageWaitingTime;
-        int[] processCounts = { 10, 20, 30, 40, 50 };
-        int[] trials = { 1, 2, 3, 4, 5 };
-        WaitingTimeChartSeries = CreateWaitingTimeChartSeries(processCounts, trials);
-        DrawWaitingTimeChart();
+        foreach (WaitingTimeSeries series in WaitingTimeChartSeries)
+        {
+            _waitingTimeSamples[(series.Algorithm, processCount, trial)] =
+                comparisonResults[series.Algorithm].AverageWaitingTime;
+
+            int pointIndex = series.Points.FindIndex(point => point.ProcessCount == processCount);
+            double average = Enumerable.Range(1, 5)
+                .Average(sampleTrial =>
+                    _waitingTimeSamples[(series.Algorithm, processCount, sampleTrial)]);
+            series.Points[pointIndex] = new WaitingTimeChartPoint(processCount, average);
+        }
+
+        UpdateWaitingTimeChartData();
     }
 
     private void WaitingTimeChartCanvas_Loaded(object sender, RoutedEventArgs e)
@@ -480,6 +511,8 @@ public partial class MainWindow : Window
             return;
 
         WaitingTimeChartCanvas.Children.Clear();
+        _waitingTimeChartLines.Clear();
+        _waitingTimeChartMarkers.Clear();
 
         const double left = 58;
         const double right = 14;
@@ -498,7 +531,7 @@ public partial class MainWindow : Window
             .SelectMany(series => series.Points)
             .Max(point => point.AverageWaitingTime);
         double tickSize = Math.Max(1, Math.Ceiling(maximumValue / 5));
-        double maximumAxisValue = tickSize * 5;
+        _waitingTimeChartMaximumAxisValue = tickSize * 5;
         int[] processCounts = { 10, 20, 30, 40, 50 };
 
         for (int tick = 0; tick <= 5; tick++)
@@ -528,26 +561,20 @@ public partial class MainWindow : Window
             {
                 int index = Array.IndexOf(processCounts, point.ProcessCount);
                 double x = left + index * plotWidth / (processCounts.Length - 1);
-                double y = top + plotHeight - point.AverageWaitingTime / maximumAxisValue * plotHeight;
+                double y = top + plotHeight - point.AverageWaitingTime / _waitingTimeChartMaximumAxisValue * plotHeight;
                 return (Index: index, Position: new Point(x, y));
             }).ToList();
 
-            for (int index = 1; index < points.Count; index++)
+            var polyline = new Polyline
             {
-                if (points[index].Index != points[index - 1].Index + 1)
-                    continue;
+                Points = new PointCollection(points.Select(point => point.Position)),
+                Stroke = series.Color,
+                StrokeThickness = 2.5
+            };
+            _waitingTimeChartLines[series.Algorithm] = polyline;
+            WaitingTimeChartCanvas.Children.Add(polyline);
 
-                WaitingTimeChartCanvas.Children.Add(new Line
-                {
-                    X1 = points[index - 1].Position.X,
-                    Y1 = points[index - 1].Position.Y,
-                    X2 = points[index].Position.X,
-                    Y2 = points[index].Position.Y,
-                    Stroke = series.Color,
-                    StrokeThickness = 2.5
-                });
-            }
-
+            var markers = new List<Ellipse>();
             foreach ((int _, Point point) in points)
             {
                 var marker = new Ellipse
@@ -561,7 +588,53 @@ public partial class MainWindow : Window
                 Canvas.SetLeft(marker, point.X - marker.Width / 2);
                 Canvas.SetTop(marker, point.Y - marker.Height / 2);
                 WaitingTimeChartCanvas.Children.Add(marker);
+                markers.Add(marker);
             }
+
+            _waitingTimeChartMarkers[series.Algorithm] = markers;
+        }
+    }
+
+    private void UpdateWaitingTimeChartData()
+    {
+        if (_waitingTimeChartLines.Count == 0)
+            return;
+
+        double maximumValue = WaitingTimeChartSeries
+            .SelectMany(series => series.Points)
+            .Max(point => point.AverageWaitingTime);
+        if (maximumValue > _waitingTimeChartMaximumAxisValue)
+        {
+            DrawWaitingTimeChart();
+            return;
+        }
+
+        double width = WaitingTimeChartCanvas.ActualWidth;
+        double height = WaitingTimeChartCanvas.ActualHeight;
+        const double left = 58;
+        const double right = 14;
+        const double top = 12;
+        const double bottom = 34;
+        double plotWidth = width - left - right;
+        double plotHeight = height - top - bottom;
+        int[] processCounts = { 10, 20, 30, 40, 50 };
+
+        foreach (WaitingTimeSeries series in WaitingTimeChartSeries)
+        {
+            var points = new PointCollection();
+            for (int index = 0; index < series.Points.Count; index++)
+            {
+                WaitingTimeChartPoint chartPoint = series.Points[index];
+                double x = left + index * plotWidth / (processCounts.Length - 1);
+                double y = top + plotHeight - chartPoint.AverageWaitingTime / _waitingTimeChartMaximumAxisValue * plotHeight;
+                var point = new Point(x, y);
+                points.Add(point);
+                Ellipse marker = _waitingTimeChartMarkers[series.Algorithm][index];
+                Canvas.SetLeft(marker, point.X - marker.Width / 2);
+                Canvas.SetTop(marker, point.Y - marker.Height / 2);
+            }
+
+            _waitingTimeChartLines[series.Algorithm].Points = points;
         }
     }
 
@@ -781,7 +854,7 @@ public partial class MainWindow : Window
     public sealed record WaitingTimeSeries(
         string Algorithm,
         Brush Color,
-        IReadOnlyList<WaitingTimeChartPoint> Points);
+        List<WaitingTimeChartPoint> Points);
 
     public sealed record WaitingTimeChartPoint(
         int ProcessCount,
