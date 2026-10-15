@@ -113,6 +113,7 @@ Makespan
 FCFS and SRTF leave `RRQuantum` blank. Round Robin records the quantum used for that workload.
 
 Numeric values are written using culture-independent decimal formatting so the CSV can be loaded reliably by tools such as Python/pandas.
+The GUI export begins with `sep=,` so Excel opens the comma-separated values in separate columns. When loading that GUI export with pandas, skip the first line (for example, `pd.read_csv(path, skiprows=1)`). The console runner's CSV does not include this Excel directive.
 
 ## Performance Metrics
 
